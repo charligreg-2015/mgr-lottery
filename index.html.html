@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MGR 2026/27 Lottery (A-J)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#efeae2',
+                            100: '#128c7e',
+                            200: '#075e54',
+                            250: '#25d366',
+                            300: '#34b7f1',
+                            400: '#0b141a',
+                            500: '#111b21',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in { animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(37, 211, 102, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(37, 211, 102, 0.8); }
+        }
+        .pulse-glow { animation: pulseGlow 2s infinite; }
+
+        .letter-card {
+            transition: all 0.2s ease-in-out;
+            backface-visibility: hidden;
+        }
+        .letter-card:not(:disabled):hover {
+            transform: translateY(-4px) scale(1.02);
+        }
+        .letter-card:not(:disabled):active {
+            transform: translateY(1px) scale(0.98);
+        }
+        .bg-chat-pattern {
+            background-color: #0b141a;
+            background-image: radial-gradient(#1f2c34 1px, transparent 1px);
+            background-size: 16px 16px;
+        }
+    </style>
+</head>
+<body class="bg-chat-pattern text-slate-100 min-h-screen font-sans flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="bg-[#111b21] border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xl">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-100 leading-tight">MGR 2026/27 Lottery</h1>
+                    <p class="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+                        <span id="syncIndicator" class="w-2 h-2 rounded-full bg-amber-400 inline-block animate-ping"></span>
+                        <span id="roundLabel">Connecting...</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons header -->
+            <div class="flex items-center gap-2">
+                <button onclick="window.openShareModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 transition shadow">
+                    <i class="fa-brands fa-whatsapp text-sm"></i> Share
+                </button>
+                <button onclick="window.confirmResetRound()" title="Start New Round" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 transition">
+                    <i class="fa-solid fa-arrows-rotate text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-md mx-auto w-full px-4 py-5 flex-grow space-y-5">
+
+        <!-- Sync Alert Banner -->
+        <div id="connectionStatus" class="bg-slate-900 border border-slate-800 text-slate-400 rounded-xl px-3 py-2 text-xs flex items-center justify-between">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-emerald-400 animate-pulse"></i>
+                <span id="statusText">Syncing real-time room state...</span>
+            </span>
+            <span class="text-[10px] bg-emerald-950 border border-emerald-800/80 text-emerald-300 px-2 py-0.5 rounded-full font-mono">LIVE SYNC</span>
+        </div>
+
+        <!-- User Identity Bar -->
+        <div class="bg-[#111b21] border border-slate-800 rounded-xl p-3 flex items-center justify-between shadow-sm">
+            <div class="flex items-center space-x-2.5 overflow-hidden">
+                <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-xs font-semibold shrink-0">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="truncate">
+                    <span class="text-xs text-slate-400 block">Playing as:</span>
+                    <span id="currentUserDisplay" class="text-sm font-semibold text-slate-200 truncate block">Guest User</span>
+                </div>
+            </div>
+            <button onclick="window.changeIdentityPrompt()" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium px-2 py-1 rounded bg-slate-800 border border-slate-700">
+                Edit Name
+            </button>
+        </div>
+
+        <!-- Instructions Banner -->
+        <div class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-800/40 rounded-xl p-3.5 flex items-start space-x-3">
+            <i class="fa-solid fa-circle-info text-emerald-400 text-lg mt-0.5 shrink-0"></i>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Letters <strong class="text-emerald-300">A to J</strong> map to secret numbers <strong class="text-emerald-300">1 to 10</strong>. Pick an available letter to lock your choice and reveal your hidden number!
+            </p>
+        </div>
+
+        <!-- Interactive Letter Grid -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs uppercase tracking-wider font-bold text-slate-400">Pick a Letter (A - J)</h2>
+                <span id="availableCountBadge" class="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full">
+                    10 Available
+                </span>
+            </div>
+
+            <div id="letterGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                <!-- Buttons A-J generated dynamically -->
+            </div>
+        </div>
+
+        <!-- User's Pick Result Section (Hidden until picked) -->
+        <div id="userResultCard" class="hidden bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-4 pop-in shadow-xl text-center relative overflow-hidden">
+            <div class="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
+            <span class="text-xs uppercase tracking-widest text-emerald-400 font-bold block mb-1">Your Selection Result</span>
+            <div class="flex items-center justify-center space-x-4 my-2">
+                <div class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2">
+                    <span class="text-xs text-slate-400 block">Letter</span>
+                    <span id="resLetter" class="text-2xl font-black text-emerald-400">A</span>
+                </div>
+                <i class="fa-solid fa-arrow-right text-slate-500"></i>
+                <div class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2">
+                    <span class="text-xs text-slate-400 block">Secret Number</span>
+                    <span id="resNumber" class="text-2xl font-black text-amber-400">7</span>
+                </div>
+            </div>
+            <p class="text-xs text-slate-300 mt-2">Claimed by: <span id="resName" class="font-semibold text-white">Name</span></p>
+            
+            <button onclick="window.shareMyResultToWhatsApp()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                <i class="fa-brands fa-whatsapp text-base"></i> Share My Result to WhatsApp Group
+            </button>
+        </div>
+
+        <!-- Live Picks Leaderboard / Summary -->
+        <div class="bg-[#111b21] border border-slate-800 rounded-xl p-4 space-y-3 shadow-md">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-emerald-400"></i> Live Claims Summary
+                </h3>
+                <span id="claimedRatio" class="text-xs text-slate-400">0/10 Picked</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead>
+                        <tr class="text-slate-500 border-b border-slate-800/80">
+                            <th class="pb-2 font-semibold">Letter</th>
+                            <th class="pb-2 font-semibold">Participant</th>
+                            <th class="pb-2 font-semibold text-right">Revealed #</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryTableBody" class="divide-y divide-slate-800/50">
+                        <!-- Summary rows populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Provable Fairness Footer Note -->
+        <div class="text-center pt-2">
+            <p class="text-[10px] text-slate-500 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-shield-halved text-emerald-500/70"></i>
+                Provably Fair Seed: <span id="hashDisplay" class="font-mono text-slate-400 truncate max-w-[180px]">...</span>
+            </p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-[#0b141a] border-t border-slate-900 py-3 text-center text-[11px] text-slate-500">
+        MGR 2026/27 Lottery &bull; Powered by Cloud Real-Time Sync
+    </footer>
+
+    <!-- MODAL 1: Claim Letter Prompt -->
+    <div id="claimModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in space-y-4">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-2 border border-emerald-500/30">
+                    <span id="modalTargetLetter">A</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-100">Claim Letter <span id="modalLetterTitle">A</span></h3>
+                <p class="text-xs text-slate-400 mt-0.5">Enter your details to reveal the secret number behind this letter.</p>
+            </div>
+
+            <form id="claimForm" onsubmit="window.handleClaimSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Your Name *</label>
+                    <input type="text" id="inputName" required placeholder="e.g. Sarah Jenkins"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">WhatsApp Number / Note (Optional)</label>
+                    <input type="text" id="inputPhone" placeholder="e.g. +1 555-0192"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="window.closeModal('claimModal')" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
+                        Cancel
+                    </button>
+                    <button id="submitClaimBtn" type="submit" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1">
+                        <span>Confirm Pick</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Share Game to WhatsApp -->
+    <div id="shareModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in space-y-4">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-2 border border-emerald-500/30">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-100">Share to WhatsApp</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Invite participants in your group to pick letters!</p>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                <p class="text-[11px] text-slate-400 font-mono leading-relaxed" id="sharePreviewText">
+                    Loading preview...
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <button onclick="window.executeWhatsAppShare()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition shadow flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-sm"></i> Open WhatsApp App
+                </button>
+                <button onclick="window.copyShareText()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-copy"></i> Copy Invitation Text
+                </button>
+                <button type="button" onclick="window.closeModal('shareModal')" class="w-full text-slate-500 hover:text-slate-400 text-xs py-1">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            onSnapshot, 
+            runTransaction 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v3';
+
+        // Firebase Setup using platform provided config or demo sandbox fallback
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mgr-lottery-2026';
+        
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // Default demo config for instant browser fallback
+            firebaseConfig = {
+                apiKey: "AIzaSyDemoKeyForLotterySync1234567",
+                authDomain: "mgr-lottery.firebaseapp.com",
+                projectId: "mgr-lottery-default",
+                storageBucket: "mgr-lottery.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:abcdef123456"
+            };
+        }
+
+        let app, db, auth;
+        let currentUser = { name: '', phone: '', uid: '' };
+        let currentRound = {
+            roundId: 1001,
+            mapping: {}, 
+            picks: {},   
+            seedHash: ''
+        };
+        let selectedTargetLetter = null;
+        let isSubmitting = false;
+
+        // Path for Public Data according to mandatory rules
+        const activeDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'lottery_rounds', 'active');
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            loadUserIdentity();
+            
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Authenticate before Firestore queries
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                currentUser.uid = auth.currentUser?.uid || crypto.randomUUID();
+                updateStatus("Connected to live server", true);
+
+                // Start Listening to Firebase Firestore document changes
+                listenToLiveRound();
+
+            } catch (err) {
+                console.warn("Firestore initialization fallback, switching to local state mode:", err);
+                updateStatus("Offline mode active (Local tab sync)", false);
+                setupLocalFallbackSync();
+            }
+        });
+
+        function updateStatus(text, isLive) {
+            const statusEl = document.getElementById('statusText');
+            const indEl = document.getElementById('syncIndicator');
+            if (statusEl) statusEl.innerText = text;
+            if (indEl) {
+                indEl.className = isLive 
+                    ? "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block animate-ping" 
+                    : "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block";
+            }
+        }
+
+        function listenToLiveRound() {
+            const docRef = activeDocRef();
+
+            onSnapshot(docRef, async (snapshot) => {
+                if (snapshot.exists()) {
+                    currentRound = snapshot.data();
+                    renderAll();
+                } else {
+                    // Initialize round #1001 in Firestore if empty
+                    await createNewRoundInFirestore(1001);
+                }
+            }, (error) => {
+                console.error("Firestore listener error:", error);
+                updateStatus("Sync error - retrying...", false);
+            });
+        }
+
+        async function createNewRoundInFirestore(roundIdNumber) {
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            // Fisher-Yates random shuffle
+            for (let i = numbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+            }
+
+            const mapping = {};
+            LETTERS.forEach((letter, index) => {
+                mapping[letter] = numbers[index];
+            });
+
+            // Seed Hash for Provable Fairness
+            const rawSeed = JSON.stringify(mapping) + Date.now();
+            let hash = 0;
+            for (let i = 0; i < rawSeed.length; i++) {
+                hash = ((hash << 5) - hash) + rawSeed.charCodeAt(i);
+                hash |= 0;
+            }
+
+            const newRoundData = {
+                roundId: roundIdNumber,
+                mapping: mapping,
+                picks: {},
+                seedHash: '0x' + Math.abs(hash).toString(16) + Math.random().toString(16).substring(2, 8),
+                updatedAt: Date.now()
+            };
+
+            if (db && auth?.currentUser) {
+                await setDoc(activeDocRef(), newRoundData);
+            } else {
+                currentRound = newRoundData;
+                localStorage.setItem('mgr_lottery_local_state', JSON.stringify(currentRound));
+                renderAll();
+            }
+        }
+
+        window.handleClaimSubmit = async function(e) {
+            e.preventDefault();
+            if (isSubmitting) return;
+
+            const name = document.getElementById('inputName').value.trim();
+            const phone = document.getElementById('inputPhone').value.trim();
+
+            if (!name || !selectedTargetLetter) return;
+
+            isSubmitting = true;
+            const submitBtn = document.getElementById('submitClaimBtn');
+            if (submitBtn) submitBtn.disabled = true;
+
+            currentUser.name = name;
+            currentUser.phone = phone;
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
+            updateUserDisplay();
+
+            const targetLetter = selectedTargetLetter;
+
+            try {
+                if (db && auth?.currentUser) {
+                    // Use Atomic Firestore Transaction to ensure strict single pick concurrency
+                    await runTransaction(db, async (transaction) => {
+                        const docRef = activeDocRef();
+                        const docSnap = await transaction.get(docRef);
+
+                        if (!docSnap.exists()) {
+                            throw new Error("Active round missing!");
+                        }
+
+                        const roundData = docSnap.data();
+                        
+                        // Check if claimed during user typing
+                        if (roundData.picks && roundData.picks[targetLetter]) {
+                            throw new Error(`Letter ${targetLetter} was just claimed by someone else!`);
+                        }
+
+                        const numberRevealed = roundData.mapping[targetLetter];
+                        const newPicks = { ...roundData.picks };
+                        newPicks[targetLetter] = {
+                            name: name,
+                            phone: phone,
+                            number: numberRevealed,
+                            timestamp: new Date().toLocaleTimeString(),
+                            uid: currentUser.uid
+                        };
+
+                        transaction.update(docRef, { picks: newPicks, updatedAt: Date.now() });
+                    });
+
+                    window.closeModal('claimModal');
+                } else {
+                    // Fallback local pick
+                    if (currentRound.picks[targetLetter]) {
+                        alert(`Letter ${targetLetter} has already been claimed!`);
+                        window.closeModal('claimModal');
+                        isSubmitting = false;
+                        if (submitBtn) submitBtn.disabled = false;
+                        return;
+                    }
+
+                    const numberRevealed = currentRound.mapping[targetLetter];
+                    currentRound.picks[targetLetter] = {
+                        name: name,
+                        phone: phone,
+                        number: numberRevealed,
+                        timestamp: new Date().toLocaleTimeString(),
+                        uid: currentUser.uid
+                    };
+                    localStorage.setItem('mgr_lottery_local_state', JSON.stringify(currentRound));
+                    window.closeModal('claimModal');
+                    renderAll();
+                }
+            } catch (err) {
+                alert(err.message || "Could not claim letter. Please pick another one.");
+            } finally {
+                isSubmitting = false;
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        };
+
+        function loadUserIdentity() {
+            const stored = localStorage.getItem(STORAGE_KEY_USER);
+            if (stored) {
+                try {
+                    currentUser = JSON.parse(stored);
+                } catch(e) {}
+            }
+            if (!currentUser.name) {
+                currentUser.name = 'Participant ' + Math.floor(1000 + Math.random() * 9000);
+            }
+            updateUserDisplay();
+        }
+
+        function updateUserDisplay() {
+            const el = document.getElementById('currentUserDisplay');
+            if (el) el.innerText = currentUser.name;
+        }
+
+        window.changeIdentityPrompt = function() {
+            const newName = prompt("Enter your Name for this lottery session:", currentUser.name);
+            if (newName && newName.trim() !== "") {
+                currentUser.name = newName.trim();
+                localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
+                updateUserDisplay();
+                renderAll();
+            }
+        };
+
+        function renderAll() {
+            // Header Info
+            document.getElementById('roundLabel').innerText = `Round #${currentRound.roundId || 1001}`;
+            document.getElementById('hashDisplay').innerText = currentRound.seedHash || '0x4f81a7b...';
+
+            // Counts
+            const totalPicked = Object.keys(currentRound.picks || {}).length;
+            const availableCount = 10 - totalPicked;
+            document.getElementById('availableCountBadge').innerText = `${availableCount} Available`;
+            document.getElementById('claimedRatio').innerText = `${totalPicked}/10 Picked`;
+
+            // Grid Rendering
+            const gridEl = document.getElementById('letterGrid');
+            gridEl.innerHTML = '';
+
+            LETTERS.forEach(letter => {
+                const isClaimed = !!(currentRound.picks && currentRound.picks[letter]);
+                const pickInfo = isClaimed ? currentRound.picks[letter] : null;
+
+                const card = document.createElement('div');
+                
+                if (!isClaimed) {
+                    card.className = "letter-card bg-[#111b21] hover:bg-slate-800 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-3 text-center cursor-pointer shadow-md flex flex-col items-center justify-between min-h-[105px] select-none";
+                    card.onclick = () => window.openClaimModal(letter);
+                    card.innerHTML = `
+                        <span class="text-2xl font-black text-emerald-400 block">${letter}</span>
+                        <span class="text-[10px] font-semibold text-emerald-300/80 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded-full mt-1">AVAILABLE</span>
+                        <span class="text-[10px] text-slate-500 mt-2">Tap to pick</span>
+                    `;
+                } else {
+                    card.className = "letter-card bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-center opacity-90 shadow-inner flex flex-col items-center justify-between min-h-[105px] select-none cursor-not-allowed";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between w-full px-1">
+                            <span class="text-lg font-bold text-slate-500 line-through">${letter}</span>
+                            <span class="text-xs font-black text-amber-400 bg-amber-950/40 border border-amber-800/40 px-1.5 py-0.5 rounded">#${pickInfo.number}</span>
+                        </div>
+                        <div class="w-full truncate px-1 mt-1">
+                            <span class="text-[11px] font-semibold text-slate-200 block truncate">${escapeHtml(pickInfo.name)}</span>
+                        </div>
+                        <span class="text-[9px] uppercase font-bold text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full mt-1">TAKEN</span>
+                    `;
+                }
+                gridEl.appendChild(card);
+            });
+
+            // Table Summary Rendering
+            const tableBody = document.getElementById('summaryTableBody');
+            tableBody.innerHTML = '';
+
+            if (totalPicked === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="py-4 text-center text-slate-500 italic">No letters claimed yet in this round. Be the first!</td>
+                    </tr>
+                `;
+            } else {
+                LETTERS.forEach(letter => {
+                    if (currentRound.picks && currentRound.picks[letter]) {
+                        const info = currentRound.picks[letter];
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-800/40 transition";
+                        tr.innerHTML = `
+                            <td class="py-2 font-bold text-emerald-400">Letter ${letter}</td>
+                            <td class="py-2 text-slate-200 font-medium">${escapeHtml(info.name)} ${info.phone ? `<span class="text-[10px] text-slate-500">(${escapeHtml(info.phone)})</span>` : ''}</td>
+                            <td class="py-2 text-right font-black text-amber-400">#${info.number}</td>
+                        `;
+                        tableBody.appendChild(tr);
+                    }
+                });
+            }
+
+            // Check if current user picked something in this round
+            checkUserCurrentSelection();
+        }
+
+        function checkUserCurrentSelection() {
+            if (!currentRound.picks) return;
+            const myPickLetter = LETTERS.find(l => 
+                currentRound.picks[l] && 
+                (currentRound.picks[l].name === currentUser.name || (currentRound.picks[l].uid && currentRound.picks[l].uid === currentUser.uid))
+            );
+            
+            if (myPickLetter) {
+                const info = currentRound.picks[myPickLetter];
+                showUserResultCard(myPickLetter, info.number, info.name);
+            } else {
+                document.getElementById('userResultCard').classList.add('hidden');
+            }
+        }
+
+        function showUserResultCard(letter, number, name) {
+            document.getElementById('resLetter').innerText = letter;
+            document.getElementById('resNumber').innerText = number;
+            document.getElementById('resName').innerText = name;
+            document.getElementById('userResultCard').classList.remove('hidden');
+        }
+
+        window.openClaimModal = function(letter) {
+            if (currentRound.picks && currentRound.picks[letter]) {
+                alert(`Letter ${letter} has already been claimed!`);
+                return;
+            }
+            selectedTargetLetter = letter;
+            document.getElementById('modalTargetLetter').innerText = letter;
+            document.getElementById('modalLetterTitle').innerText = letter;
+            document.getElementById('inputName').value = currentUser.name || '';
+            document.getElementById('inputPhone').value = currentUser.phone || '';
+            window.openModal('claimModal');
+        };
+
+        window.confirmResetRound = async function() {
+            if (confirm("Are you sure you want to start a NEW round? This will reset all 10 letters for all participants in the WhatsApp group.")) {
+                const nextId = (currentRound.roundId || 1000) + 1;
+                await createNewRoundInFirestore(nextId);
+                document.getElementById('userResultCard').classList.add('hidden');
+            }
+        };
+
+        function getShareableGameUrl() {
+            return window.location.href.split('?')[0];
+        }
+
+        window.openShareModal = function() {
+            const url = getShareableGameUrl();
+            const totalPicked = Object.keys(currentRound.picks || {}).length;
+            const availableCount = 10 - totalPicked;
+            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to J to reveal your secret number (1-10)!\n\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
+            
+            document.getElementById('sharePreviewText').innerText = shareMsg;
+            window.openModal('shareModal');
+        };
+
+        window.executeWhatsAppShare = function() {
+            const text = document.getElementById('sharePreviewText').innerText;
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(waUrl, '_blank');
+        };
+
+        window.shareMyResultToWhatsApp = function() {
+            const letter = document.getElementById('resLetter').innerText;
+            const number = document.getElementById('resNumber').innerText;
+            const name = document.getElementById('resName').innerText;
+            const url = getShareableGameUrl();
+
+            const msg = `🎯 *MGR 2026/27 LOTTERY RESULT!*\n\nI (${name}) picked *Letter ${letter}* and revealed *Secret Number ${number}*! 🥳\n\nPick your remaining letter before they are all taken:\n${url}`;
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(waUrl, '_blank');
+        };
+
+        window.copyShareText = function() {
+            const text = document.getElementById('sharePreviewText').innerText;
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            alert("Invitation text copied to clipboard!");
+        };
+
+        // Modal Helpers
+        window.openModal = function(id) {
+            document.getElementById(id).classList.remove('hidden');
+        };
+        window.closeModal = function(id) {
+            document.getElementById(id).classList.add('hidden');
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Local Tab Sync Fallback if offline
+        function setupLocalFallbackSync() {
+            if ('BroadcastChannel' in window) {
+                const bc = new BroadcastChannel('mgr_lottery_channel');
+                bc.onmessage = (e) => {
+                    if (e.data && e.data.round) {
+                        currentRound = e.data.round;
+                        renderAll();
+                    }
+                };
+            }
+            const saved = localStorage.getItem('mgr_lottery_local_state');
+            if (saved) {
+                try { currentRound = JSON.parse(saved); } catch(e){}
+            } else {
+                createNewRoundInFirestore(1001);
+            }
+            renderAll();
+        }
+    </script>
+</body>
+</html>
