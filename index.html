@@ -85,8 +85,9 @@
                 <button onclick="window.openShareModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 transition shadow active:scale-95">
                     <i class="fa-brands fa-whatsapp text-sm"></i> Share
                 </button>
-                <button id="resetRoundBtn" onclick="window.confirmResetRound()" title="Start New Round" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 transition active:scale-95 flex items-center justify-center">
+                <button id="resetRoundBtn" onclick="window.confirmResetRound()" title="Admin Reset Round" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 transition active:scale-95 flex items-center justify-center relative">
                     <i class="fa-solid fa-arrows-rotate text-sm" id="resetIcon"></i>
+                    <i class="fa-solid fa-lock text-[9px] text-amber-400 absolute -bottom-1 -right-1 bg-slate-900 rounded-full p-0.5 border border-slate-700"></i>
                 </button>
             </div>
         </div>
@@ -357,7 +358,7 @@
         </div>
     </div>
 
-    <!-- MODAL 3: Custom Alert Dialog (Replaces native browser alert) -->
+    <!-- MODAL 3: Custom Alert Dialog -->
     <div id="customAlertModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in text-center space-y-3">
             <div class="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-lg mx-auto border border-amber-500/30">
@@ -371,7 +372,7 @@
         </div>
     </div>
 
-    <!-- MODAL 4: Custom Confirm Dialog (Replaces native browser confirm) -->
+    <!-- MODAL 4: Custom Confirm Dialog -->
     <div id="customConfirmModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in text-center space-y-3">
             <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-lg mx-auto border border-emerald-500/30">
@@ -387,6 +388,36 @@
                     Yes, Proceed
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: Admin Authentication Prompt Dialog -->
+    <div id="adminModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in text-center space-y-3 relative">
+            <button onclick="window.closeModal('adminModal')" class="absolute top-3 right-3 text-slate-500 hover:text-slate-300 p-1">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+            <div class="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-lg mx-auto border border-amber-500/30">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-100">Admin Authentication</h4>
+            <p class="text-xs text-slate-300 leading-relaxed">Enter the Master Admin PIN to start a new round and reset all selections.</p>
+            
+            <form onsubmit="window.handleAdminResetSubmit(event)" class="space-y-3 pt-1">
+                <div>
+                    <input type="password" id="inputAdminPin" required placeholder="Enter Admin PIN" autocomplete="off"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-center text-emerald-400 font-bold tracking-widest placeholder-slate-600 focus:outline-none focus:border-emerald-500 text-base">
+                    <span class="text-[10px] text-slate-500 block mt-1">Default Admin PIN: <strong class="text-slate-400 font-mono">2026</strong></span>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="window.closeModal('adminModal')" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-unlock"></i> Verify & Reset
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -406,6 +437,7 @@
         const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v5';
         const STORAGE_KEY_ROUND = 'mgr_lottery_local_state_v5';
         const STORAGE_KEY_DEVICE = 'mgr_lottery_device_id_v5';
+        const ADMIN_MASTER_PIN = '2026'; // Default Administrator Access PIN
 
         let app = null, db = null, auth = null;
         let currentUser = { name: '', phone: '', email: '', uid: crypto.randomUUID() };
@@ -495,9 +527,27 @@
             }
         };
 
+        // ADMIN RESTRICTION: Opens PIN Dialog before allowing round reset
         window.confirmResetRound = function() {
+            const pinInput = document.getElementById('inputAdminPin');
+            if (pinInput) pinInput.value = '';
+            window.openModal('adminModal');
+        };
+
+        // Handle Admin PIN Submission
+        window.handleAdminResetSubmit = function(e) {
+            e.preventDefault();
+            const enteredPin = document.getElementById('inputAdminPin').value.trim();
+
+            if (enteredPin !== ADMIN_MASTER_PIN) {
+                window.showAlert("Incorrect Admin PIN! Only authorized group administrators can start a new round.", "Access Denied");
+                return;
+            }
+
+            window.closeModal('adminModal');
+
             window.showConfirm(
-                "Are you sure you want to start a NEW round? This will reset all 11 letters, reshuffle secret numbers, and allow devices to pick again.",
+                "Admin PIN Verified! Are you sure you want to start a NEW round? This will reset all 11 letters, reshuffle secret numbers, and clear device picks.",
                 "Start New Round",
                 async () => {
                     const icon = document.getElementById('resetIcon');
@@ -510,6 +560,7 @@
                     if (userCard) userCard.classList.add('hidden');
 
                     if (icon) icon.classList.remove('animate-spin');
+                    window.showAlert("New lottery round started successfully!", "Round Reset");
                 }
             );
         };
@@ -547,13 +598,11 @@
         }
 
         window.openClaimModal = function(letter) {
-            // Check if letter claimed
             if (currentRound.picks && currentRound.picks[letter]) {
                 window.showAlert(`Letter ${letter} has already been claimed!`, "Letter Taken");
                 return;
             }
 
-            // Enforce Device Lock Check
             const lockCheck = checkDeviceOrEmailAlreadyPicked();
             if (lockCheck.picked) {
                 window.showAlert(lockCheck.reason, "Pick Blocked");
@@ -567,7 +616,6 @@
             document.getElementById('inputPhone').value = currentUser.phone || '';
             document.getElementById('inputEmail').value = currentUser.email || '';
 
-            // Reset to Step 1
             window.backToStep1();
             window.openModal('claimModal');
         };
@@ -599,7 +647,6 @@
                 return;
             }
 
-            // Uniqueness check for email / device
             const lockCheck = checkDeviceOrEmailAlreadyPicked(email);
             if (lockCheck.picked) {
                 window.showAlert(lockCheck.reason, "Entry Denied");
@@ -612,10 +659,8 @@
             localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
             updateUserDisplay();
 
-            // Generate 6-digit OTP
             activeOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
-            // Display Step 2 OTP interface
             document.getElementById('claimStep1Form').classList.add('hidden');
             document.getElementById('claimStep2Form').classList.remove('hidden');
             document.getElementById('targetEmailDisplay').innerText = email;
@@ -623,6 +668,31 @@
             document.getElementById('inputOtpCode').value = '';
             document.getElementById('otpModalSubtext').innerText = "Enter the 6-digit verification passkey to confirm your pick.";
 
+            startOTPTimer();
+        };
+
+        function startOTPTimer() {
+            clearInterval(otpTimerInterval);
+            otpCountdown = 60;
+            const timerEl = document.getElementById('otpTimerText');
+            const resendBtn = document.getElementById('resendOtpBtn');
+            if (resendBtn) resendBtn.disabled = true;
+
+            otpTimerInterval = setInterval(() => {
+                otpCountdown--;
+                if (timerEl) timerEl.innerText = `${otpCountdown}s`;
+                if (otpCountdown <= 0) {
+                    clearInterval(otpTimerInterval);
+                    if (resendBtn) resendBtn.disabled = false;
+                    if (timerEl) timerEl.innerText = "Expired";
+                }
+            }, 1000);
+        }
+
+        window.resendOTPCode = function() {
+            activeOTP = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('simulatedOtpCode').innerText = activeOTP;
+            window.showAlert("New Passkey generated successfully!", "Passkey Resent");
             startOTPTimer();
         };
 
@@ -635,7 +705,6 @@
                 return;
             }
 
-            // Transition to Step 3: Pick & Confirm Letter
             window.showStep3LetterSelection();
         };
 
@@ -713,7 +782,6 @@
                             throw new Error(`Letter ${targetLetter} was just claimed by someone else!`);
                         }
 
-                        // Re-verify device & email lock in transaction
                         const picksList = Object.values(roundData.picks || {});
                         if (picksList.some(p => p.deviceId === deviceId)) {
                             throw new Error("This device has already submitted a pick for this round.");
@@ -739,7 +807,6 @@
 
                     window.closeModal('claimModal');
                 } else {
-                    // Local fallback execution
                     if (currentRound.picks && currentRound.picks[targetLetter]) {
                         window.showAlert(`Letter ${targetLetter} has already been claimed!`, "Already Claimed");
                         window.closeModal('claimModal');
@@ -831,7 +898,6 @@
             loadUserIdentity();
             loadLocalRound();
 
-            // Try Firebase Cloud Setup safely
             if (typeof __firebase_config !== 'undefined') {
                 try {
                     const firebaseConfig = JSON.parse(__firebase_config);
@@ -848,7 +914,6 @@
                     currentUser.uid = auth.currentUser?.uid || crypto.randomUUID();
                     updateStatus("Cloud real-time sync active", true);
 
-                    // Listen to live Cloud Firestore updates
                     onSnapshot(activeDocRef(), (snapshot) => {
                         if (snapshot.exists()) {
                             currentRound = snapshot.data();
@@ -983,7 +1048,6 @@
             const claimedRatio = document.getElementById('claimedRatio');
             if (claimedRatio) claimedRatio.innerText = `${totalPicked}/${LETTERS.length} Picked`;
 
-            // Update Device Status Badge
             const devCheck = checkDeviceOrEmailAlreadyPicked();
             const devBadge = document.getElementById('deviceStatusBadge');
             if (devBadge) {
