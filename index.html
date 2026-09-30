@@ -288,7 +288,37 @@
                         Back
                     </button>
                     <button id="verifyOtpBtn" type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-circle-check"></i> Verify & Claim
+                        <i class="fa-solid fa-circle-check"></i> Verify Passkey
+                    </button>
+                </div>
+            </form>
+
+            <!-- STEP 3: Post-OTP Selection & Confirmation Form -->
+            <form id="claimStep3Form" onsubmit="window.handleConfirmLetterPick(event)" class="space-y-3 hidden">
+                <div class="bg-emerald-950/60 border border-emerald-500/40 rounded-xl p-2.5 text-center space-y-1">
+                    <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block">
+                        <i class="fa-solid fa-circle-check"></i> Identity Verified
+                    </span>
+                    <span class="text-xs text-slate-300 block">Select your desired letter from the remaining unpicked letters:</span>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-2 text-center">Remaining Available Letters</label>
+                    <div id="modalRemainingLettersGrid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                        <!-- Dynamically populated with available letters -->
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center text-xs">
+                    Selected Letter: <strong id="step3SelectedLetterDisplay" class="text-emerald-400 font-black text-base">A</strong>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="window.backToStep2()" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
+                        Back
+                    </button>
+                    <button id="finalConfirmPickBtn" type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-ticket"></i> Confirm Pick
                     </button>
                 </div>
             </form>
@@ -545,8 +575,16 @@
         window.backToStep1 = function() {
             document.getElementById('claimStep1Form').classList.remove('hidden');
             document.getElementById('claimStep2Form').classList.add('hidden');
+            document.getElementById('claimStep3Form').classList.add('hidden');
             document.getElementById('otpModalSubtext').innerText = "Enter your details and verify your email via One-Time Passkey.";
             clearInterval(otpTimerInterval);
+        };
+
+        window.backToStep2 = function() {
+            document.getElementById('claimStep1Form').classList.add('hidden');
+            document.getElementById('claimStep2Form').classList.remove('hidden');
+            document.getElementById('claimStep3Form').classList.add('hidden');
+            document.getElementById('otpModalSubtext').innerText = "Enter the 6-digit verification passkey to confirm your identity.";
         };
 
         window.handleRequestOTP = function(e) {
@@ -588,35 +626,8 @@
             startOTPTimer();
         };
 
-        function startOTPTimer() {
-            clearInterval(otpTimerInterval);
-            otpCountdown = 60;
-            const timerEl = document.getElementById('otpTimerText');
-            const resendBtn = document.getElementById('resendOtpBtn');
-            if (resendBtn) resendBtn.disabled = true;
-
-            otpTimerInterval = setInterval(() => {
-                otpCountdown--;
-                if (timerEl) timerEl.innerText = `${otpCountdown}s`;
-                if (otpCountdown <= 0) {
-                    clearInterval(otpTimerInterval);
-                    if (resendBtn) resendBtn.disabled = false;
-                    if (timerEl) timerEl.innerText = "Expired";
-                }
-            }, 1000);
-        }
-
-        window.resendOTPCode = function() {
-            activeOTP = Math.floor(100000 + Math.random() * 900000).toString();
-            document.getElementById('simulatedOtpCode').innerText = activeOTP;
-            window.showAlert(`A new 6-digit passkey (${activeOTP}) has been generated for ${currentUser.email}.`, "Passkey Resent");
-            startOTPTimer();
-        };
-
-        window.handleVerifyOTP = async function(e) {
+        window.handleVerifyOTP = function(e) {
             e.preventDefault();
-            if (isSubmitting) return;
-
             const enteredOTP = document.getElementById('inputOtpCode').value.trim();
 
             if (enteredOTP !== activeOTP) {
@@ -624,11 +635,67 @@
                 return;
             }
 
-            isSubmitting = true;
-            const verifyBtn = document.getElementById('verifyOtpBtn');
-            if (verifyBtn) verifyBtn.disabled = true;
+            // Transition to Step 3: Pick & Confirm Letter
+            window.showStep3LetterSelection();
+        };
+
+        window.showStep3LetterSelection = function() {
+            document.getElementById('claimStep1Form').classList.add('hidden');
+            document.getElementById('claimStep2Form').classList.add('hidden');
+            document.getElementById('claimStep3Form').classList.remove('hidden');
+            document.getElementById('otpModalSubtext').innerText = "Choose any letter from the remaining available options.";
+
+            renderModalRemainingLetters();
+        };
+
+        function renderModalRemainingLetters() {
+            const grid = document.getElementById('modalRemainingLettersGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const unpicked = LETTERS.filter(l => !currentRound.picks || !currentRound.picks[l]);
+
+            if (unpicked.length === 0) {
+                grid.innerHTML = `<div class="col-span-4 text-center text-xs text-amber-400 py-2">No letters remaining in this round!</div>`;
+                return;
+            }
+
+            if (!selectedTargetLetter || !unpicked.includes(selectedTargetLetter)) {
+                selectedTargetLetter = unpicked[0];
+            }
+
+            unpicked.forEach(letter => {
+                const isSelected = letter === selectedTargetLetter;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = isSelected
+                    ? "py-2 px-1 bg-emerald-600 border-2 border-emerald-400 rounded-xl text-white font-black text-base shadow-md transition scale-105"
+                    : "py-2 px-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-slate-300 font-bold text-sm transition";
+                btn.innerText = letter;
+                btn.onclick = () => {
+                    selectedTargetLetter = letter;
+                    renderModalRemainingLetters();
+                };
+                grid.appendChild(btn);
+            });
+
+            const display = document.getElementById('step3SelectedLetterDisplay');
+            if (display) display.innerText = selectedTargetLetter || '-';
+        }
+
+        window.handleConfirmLetterPick = async function(e) {
+            e.preventDefault();
+            if (isSubmitting) return;
 
             const targetLetter = selectedTargetLetter;
+            if (!targetLetter) {
+                window.showAlert("Please select a letter from the remaining choices.", "Select Letter");
+                return;
+            }
+
+            isSubmitting = true;
+            const confirmBtn = document.getElementById('finalConfirmPickBtn');
+            if (confirmBtn) confirmBtn.disabled = true;
 
             try {
                 if (db && auth?.currentUser) {
@@ -646,7 +713,7 @@
                             throw new Error(`Letter ${targetLetter} was just claimed by someone else!`);
                         }
 
-                        // Re-verify device lock in transaction
+                        // Re-verify device & email lock in transaction
                         const picksList = Object.values(roundData.picks || {});
                         if (picksList.some(p => p.deviceId === deviceId)) {
                             throw new Error("This device has already submitted a pick for this round.");
@@ -673,11 +740,11 @@
                     window.closeModal('claimModal');
                 } else {
                     // Local fallback execution
-                    if (currentRound.picks[targetLetter]) {
+                    if (currentRound.picks && currentRound.picks[targetLetter]) {
                         window.showAlert(`Letter ${targetLetter} has already been claimed!`, "Already Claimed");
                         window.closeModal('claimModal');
                         isSubmitting = false;
-                        if (verifyBtn) verifyBtn.disabled = false;
+                        if (confirmBtn) confirmBtn.disabled = false;
                         return;
                     }
 
@@ -686,7 +753,7 @@
                         window.showAlert(lockCheck.reason, "Pick Blocked");
                         window.closeModal('claimModal');
                         isSubmitting = false;
-                        if (verifyBtn) verifyBtn.disabled = false;
+                        if (confirmBtn) confirmBtn.disabled = false;
                         return;
                     }
 
@@ -711,7 +778,7 @@
                 window.showAlert(err.message || "Could not claim letter. Please try again.", "Error");
             } finally {
                 isSubmitting = false;
-                if (verifyBtn) verifyBtn.disabled = false;
+                if (confirmBtn) confirmBtn.disabled = false;
             }
         };
 
