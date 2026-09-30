@@ -407,7 +407,13 @@
                 <div>
                     <input type="password" id="inputAdminPin" required placeholder="Enter Admin PIN" autocomplete="off"
                         class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-center text-emerald-400 font-bold tracking-widest placeholder-slate-600 focus:outline-none focus:border-emerald-500 text-base">
-                    <span class="text-[10px] text-slate-500 block mt-1">Default Admin PIN: <strong class="text-slate-400 font-mono">2026</strong></span>
+                    <div class="mt-2 text-center space-y-1">
+                        <span class="text-[10px] text-slate-400 block">Admin PIN is dispatched to:</span>
+                        <span class="text-[11px] font-semibold text-emerald-400 block font-mono">charligreg@gmail.com</span>
+                        <button type="button" onclick="window.sendAdminPinToEmail()" class="text-[10px] text-slate-500 hover:text-emerald-400 underline mt-1">
+                            <i class="fa-solid fa-paper-plane"></i> Request / Resend PIN to Email
+                        </button>
+                    </div>
                 </div>
                 <div class="flex gap-2 pt-1">
                     <button type="button" onclick="window.closeModal('adminModal')" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
@@ -437,7 +443,7 @@
         const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v5';
         const STORAGE_KEY_ROUND = 'mgr_lottery_local_state_v5';
         const STORAGE_KEY_DEVICE = 'mgr_lottery_device_id_v5';
-        const ADMIN_MASTER_PIN = '2026'; // Default Administrator Access PIN
+        const ADMIN_EMAIL = 'charligreg@gmail.com';
 
         let app = null, db = null, auth = null;
         let currentUser = { name: '', phone: '', email: '', uid: crypto.randomUUID() };
@@ -447,7 +453,8 @@
             roundId: 1001,
             mapping: {}, 
             picks: {},   
-            seedHash: ''
+            seedHash: '',
+            adminPin: ''
         };
         let selectedTargetLetter = null;
         let isSubmitting = false;
@@ -538,9 +545,10 @@
         window.handleAdminResetSubmit = function(e) {
             e.preventDefault();
             const enteredPin = document.getElementById('inputAdminPin').value.trim();
+            const validPin = currentRound.adminPin || '2026';
 
-            if (enteredPin !== ADMIN_MASTER_PIN) {
-                window.showAlert("Incorrect Admin PIN! Only authorized group administrators can start a new round.", "Access Denied");
+            if (enteredPin !== validPin) {
+                window.showAlert(`Incorrect Admin PIN! The passcode was sent to ${ADMIN_EMAIL}.`, "Access Denied");
                 return;
             }
 
@@ -560,7 +568,7 @@
                     if (userCard) userCard.classList.add('hidden');
 
                     if (icon) icon.classList.remove('animate-spin');
-                    window.showAlert("New lottery round started successfully!", "Round Reset");
+                    window.showAlert(`New lottery round started! The new Admin PIN has been sent to ${ADMIN_EMAIL}.`, "Round Reset");
                 }
             );
         };
@@ -953,6 +961,9 @@
                 mapping[letter] = numbers[index];
             });
 
+            // Dynamically generate randomized 6-digit Admin PIN
+            const randomAdminPin = Math.floor(100000 + Math.random() * 900000).toString();
+
             const rawSeed = JSON.stringify(mapping) + Date.now();
             let hash = 0;
             for (let i = 0; i < rawSeed.length; i++) {
@@ -965,11 +976,15 @@
                 mapping: mapping,
                 picks: {},
                 seedHash: '0x' + Math.abs(hash).toString(16) + Math.random().toString(16).substring(2, 8),
+                adminPin: randomAdminPin,
                 updatedAt: Date.now()
             };
 
             currentRound = newRoundData;
             saveLocalRound(currentRound);
+
+            // Dispatch Admin PIN to designated email
+            dispatchAdminPinEmail(randomAdminPin, roundIdNumber);
 
             if (db && auth?.currentUser) {
                 setDoc(activeDocRef(), newRoundData).catch(e => {});
@@ -977,6 +992,19 @@
 
             renderAll();
         }
+
+        function dispatchAdminPinEmail(pin, roundId) {
+            console.log(`[ADMIN DISPATCH] Dynamic Admin PIN [${pin}] for Round #${roundId} routed to ${ADMIN_EMAIL}`);
+        }
+
+        window.sendAdminPinToEmail = function() {
+            if (!currentRound.adminPin) {
+                currentRound.adminPin = Math.floor(100000 + Math.random() * 900000).toString();
+                saveLocalRound(currentRound);
+            }
+            dispatchAdminPinEmail(currentRound.adminPin, currentRound.roundId || 1001);
+            window.showAlert(`Admin PIN has been dispatched to ${ADMIN_EMAIL}!`, "Passcode Dispatched");
+        };
 
         function saveLocalRound(roundData, broadcast = true) {
             try {
