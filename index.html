@@ -105,19 +105,32 @@
         </div>
 
         <!-- User Identity Bar -->
-        <div class="bg-[#111b21] border border-slate-800 rounded-xl p-3 flex items-center justify-between shadow-sm">
-            <div class="flex items-center space-x-2.5 overflow-hidden">
-                <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-xs font-semibold shrink-0">
-                    <i class="fa-solid fa-user"></i>
+        <div class="bg-[#111b21] border border-slate-800 rounded-xl p-3 space-y-2 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5 overflow-hidden">
+                    <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-xs font-semibold shrink-0">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="truncate">
+                        <span class="text-xs text-slate-400 block">Playing as:</span>
+                        <span id="currentUserDisplay" class="text-sm font-semibold text-slate-200 truncate block">Guest User</span>
+                    </div>
                 </div>
-                <div class="truncate">
-                    <span class="text-xs text-slate-400 block">Playing as:</span>
-                    <span id="currentUserDisplay" class="text-sm font-semibold text-slate-200 truncate block">Guest User</span>
-                </div>
+                <button onclick="window.changeIdentityPrompt()" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium px-2 py-1 rounded bg-slate-800 border border-slate-700">
+                    Edit Name
+                </button>
             </div>
-            <button onclick="window.changeIdentityPrompt()" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium px-2 py-1 rounded bg-slate-800 border border-slate-700">
-                Edit Name
-            </button>
+            
+            <!-- Device Lock & Security Indicator -->
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span class="text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-mobile-screen-button text-slate-500"></i>
+                    Device Status:
+                </span>
+                <span id="deviceStatusBadge" class="font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-full">
+                    1 Pick Allowed
+                </span>
+            </div>
         </div>
 
         <!-- Instructions Banner -->
@@ -155,87 +168,88 @@
                 <div class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2">
                     <span class="text-xs text-slate-400 block">Secret Number</span>
                     <span id="resNumber" class="text-2xl font-black text-amber-400">7</span>
-                </div>
-            </div>
-            <p class="text-xs text-slate-300 mt-2">Claimed by: <span id="resName" class="font-semibold text-white">Name</span></p>
-            
-            <button onclick="window.shareMyResultToWhatsApp()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                <i class="fa-brands fa-whatsapp text-base"></i> Share My Result to WhatsApp Group
-            </button>
-        </div>
-
-        <!-- Live Picks Leaderboard / Summary -->
-        <div class="bg-[#111b21] border border-slate-800 rounded-xl p-4 space-y-3 shadow-md">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <i class="fa-solid fa-list-check text-emerald-400"></i> Live Claims Summary
-                </h3>
-                <span id="claimedRatio" class="text-xs text-slate-400">0/11 Picked</span>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs text-slate-300">
-                    <thead>
-                        <tr class="text-slate-500 border-b border-slate-800/80">
-                            <th class="pb-2 font-semibold">Letter</th>
-                            <th class="pb-2 font-semibold">Participant</th>
-                            <th class="pb-2 font-semibold text-right">Revealed #</th>
-                        </tr>
-                    </thead>
-                    <tbody id="summaryTableBody" class="divide-y divide-slate-800/50">
-                        <!-- Summary rows populated dynamically -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Provable Fairness Footer Note -->
-        <div class="text-center pt-2">
-            <p class="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-                <i class="fa-solid fa-shield-halved text-emerald-500/70"></i>
-                Provably Fair Seed: <span id="hashDisplay" class="font-mono text-slate-400 truncate max-w-[180px]">...</span>
-            </p>
-        </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-[#0b141a] border-t border-slate-900 py-3 text-center text-[11px] text-slate-500">
-        MGR 2026/27 Lottery &bull; Powered by Real-Time Sync
-    </footer>
-
-    <!-- MODAL 1: Claim Letter Prompt -->
+    <!-- MODAL 1: Claim Letter Prompt with Email OTP Verification -->
     <div id="claimModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in space-y-4">
+        <div class="bg-[#111b21] border border-slate-800 rounded-2xl max-w-xs w-full p-5 shadow-2xl pop-in space-y-4 relative">
+            
+            <!-- Close Button -->
+            <button onclick="window.closeModal('claimModal')" class="absolute top-3 right-3 text-slate-500 hover:text-slate-300 p-1">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+
             <div class="text-center">
                 <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-2 border border-emerald-500/30">
                     <span id="modalTargetLetter">A</span>
                 </div>
                 <h3 class="text-base font-bold text-slate-100">Claim Letter <span id="modalLetterTitle">A</span></h3>
-                <p class="text-xs text-slate-400 mt-0.5">Enter your details to reveal the secret number behind this letter.</p>
+                <p id="otpModalSubtext" class="text-xs text-slate-400 mt-0.5">Enter your details and verify your email via One-Time Passkey.</p>
             </div>
 
-            <form id="claimForm" onsubmit="window.handleClaimSubmit(event)" class="space-y-3">
+            <!-- STEP 1: Details & Email Entry Form -->
+            <form id="claimStep1Form" onsubmit="window.handleRequestOTP(event)" class="space-y-3">
                 <div>
-                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Your Name *</label>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Your Full Name *</label>
                     <input type="text" id="inputName" required placeholder="e.g. Sarah Jenkins"
                         class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-medium text-slate-400 mb-1">WhatsApp Number / Note (Optional)</label>
-                    <input type="text" id="inputPhone" placeholder="e.g. +1 555-0192"
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">WhatsApp Phone Number *</label>
+                    <input type="tel" id="inputPhone" required placeholder="e.g. +254 712 345 678"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Email Address (For Verification Passkey) *</label>
+                    <input type="email" id="inputEmail" required placeholder="name@example.com"
                         class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
                 </div>
 
                 <div class="flex gap-2 pt-2">
-                    <button type="button" onclick="window.closeModal('claimModal')" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
+                    <button type="button" onclick="window.closeModal('claimModal')" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
                         Cancel
                     </button>
-                    <button id="submitClaimBtn" type="submit" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1">
-                        <span>Confirm Pick</span>
+                    <button id="requestOtpBtn" type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-key"></i> Send Passkey
                     </button>
                 </div>
             </form>
+
+            <!-- STEP 2: OTP Entry Form (Initially Hidden) -->
+            <form id="claimStep2Form" onsubmit="window.handleVerifyOTP(event)" class="space-y-3 hidden">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center space-y-1">
+                    <span class="text-[10px] text-slate-400 block">Passkey sent to:</span>
+                    <span id="targetEmailDisplay" class="text-xs font-semibold text-emerald-400 block truncate">user@example.com</span>
+                </div>
+
+                <!-- On-screen Simulated OTP Alert Box for Quick Testing -->
+                <div id="simulatedOtpBanner" class="bg-amber-950/40 border border-amber-500/40 rounded-xl p-2.5 text-center">
+                    <span class="text-[10px] text-amber-300 block font-semibold"><i class="fa-solid fa-shield-halved"></i> Security Verification Passkey:</span>
+                    <span id="simulatedOtpCode" class="text-lg font-mono font-black tracking-widest text-amber-400 my-0.5 block">123456</span>
+                    <span class="text-[9px] text-amber-400/80 block">Enter this code below to confirm your claim.</span>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1 text-center">Enter 6-Digit Passkey *</label>
+                    <input type="text" id="inputOtpCode" maxlength="6" pattern="[0-9]{6}" required placeholder="6-digit code"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-center font-mono text-base tracking-widest font-bold text-emerald-400 placeholder-slate-600 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                    <span>Resend code in: <strong id="otpTimerText" class="text-slate-200">60s</strong></span>
+                    <button type="button" id="resendOtpBtn" onclick="window.resendOTPCode()" disabled class="text-emerald-500 hover:underline disabled:opacity-40 disabled:no-underline font-medium">
+                        Resend Code
+                    </button>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="window.backToStep1()" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs py-2.5 rounded-xl transition">
+                        Back
+                    </button>
+                    <button id="verifyOtpBtn" type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-circle-check"></i> Verify & Claim
+                    </button>
+                </div>
+            </form>
+
         </div>
     </div>
 
@@ -283,11 +297,14 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
-        const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v3';
-        const STORAGE_KEY_ROUND = 'mgr_lottery_local_state_v3';
+        const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v4';
+        const STORAGE_KEY_ROUND = 'mgr_lottery_local_state_v4';
+        const STORAGE_KEY_DEVICE = 'mgr_lottery_device_id_v4';
 
         let app = null, db = null, auth = null;
-        let currentUser = { name: '', phone: '', uid: crypto.randomUUID() };
+        let currentUser = { name: '', phone: '', email: '', uid: crypto.randomUUID() };
+        let deviceId = getOrCreateDeviceId();
+
         let currentRound = {
             roundId: 1001,
             mapping: {}, 
@@ -296,7 +313,19 @@
         };
         let selectedTargetLetter = null;
         let isSubmitting = false;
+        let activeOTP = null;
+        let otpTimerInterval = null;
+        let otpCountdown = 60;
         let broadcastChan = null;
+
+        function getOrCreateDeviceId() {
+            let id = localStorage.getItem(STORAGE_KEY_DEVICE);
+            if (!id) {
+                id = 'dev_' + crypto.randomUUID();
+                localStorage.setItem(STORAGE_KEY_DEVICE, id);
+            }
+            return id;
+        }
 
         if ('BroadcastChannel' in window) {
             try {
@@ -319,6 +348,9 @@
         window.closeModal = function(id) {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
+            if (id === 'claimModal') {
+                clearInterval(otpTimerInterval);
+            }
         };
 
         window.changeIdentityPrompt = function() {
@@ -335,7 +367,7 @@
             const icon = document.getElementById('resetIcon');
             if (icon) icon.classList.add('animate-spin');
 
-            if (confirm("Are you sure you want to start a NEW round? This will reset all 11 letters and reshuffle secret numbers.")) {
+            if (confirm("Are you sure you want to start a NEW round? This will reset all 11 letters, reshuffle secret numbers, and allow devices to pick again.")) {
                 const nextId = (currentRound.roundId || 1000) + 1;
                 await createNewRound(nextId);
                 const userCard = document.getElementById('userResultCard');
@@ -345,36 +377,152 @@
             if (icon) icon.classList.remove('animate-spin');
         };
 
+        // Check if device or email has already submitted a pick for this round
+        function checkDeviceOrEmailAlreadyPicked(emailToCheck) {
+            if (!currentRound.picks) return { picked: false };
+
+            const picksArray = Object.values(currentRound.picks);
+            
+            // Check by Device ID
+            const deviceMatch = picksArray.find(p => p.deviceId === deviceId);
+            if (deviceMatch) {
+                return { 
+                    picked: true, 
+                    reason: `This device has already claimed Letter ${findLetterByPick(deviceMatch)} in Round #${currentRound.roundId || 1001}. Only 1 pick per device is permitted!`
+                };
+            }
+
+            // Check by Email
+            if (emailToCheck) {
+                const emailMatch = picksArray.find(p => p.email && p.email.toLowerCase() === emailToCheck.trim().toLowerCase());
+                if (emailMatch) {
+                    return { 
+                        picked: true, 
+                        reason: `The email address [${emailToCheck}] has already been used to claim a letter in Round #${currentRound.roundId || 1001}.`
+                    };
+                }
+            }
+
+            return { picked: false };
+        }
+
+        function findLetterByPick(pickObj) {
+            return Object.keys(currentRound.picks).find(l => currentRound.picks[l] === pickObj) || '?';
+        }
+
         window.openClaimModal = function(letter) {
+            // Check if letter claimed
             if (currentRound.picks && currentRound.picks[letter]) {
                 alert(`Letter ${letter} has already been claimed!`);
                 return;
             }
+
+            // Enforce Device Lock Check
+            const lockCheck = checkDeviceOrEmailAlreadyPicked();
+            if (lockCheck.picked) {
+                alert(`🚫 PICK BLOCKED:\n\n${lockCheck.reason}`);
+                return;
+            }
+
             selectedTargetLetter = letter;
             document.getElementById('modalTargetLetter').innerText = letter;
             document.getElementById('modalLetterTitle').innerText = letter;
             document.getElementById('inputName').value = currentUser.name || '';
             document.getElementById('inputPhone').value = currentUser.phone || '';
+            document.getElementById('inputEmail').value = currentUser.email || '';
+
+            // Reset to Step 1
+            window.backToStep1();
             window.openModal('claimModal');
         };
 
-        window.handleClaimSubmit = async function(e) {
+        window.backToStep1 = function() {
+            document.getElementById('claimStep1Form').classList.remove('hidden');
+            document.getElementById('claimStep2Form').classList.add('hidden');
+            document.getElementById('otpModalSubtext').innerText = "Enter your details and verify your email via One-Time Passkey.";
+            clearInterval(otpTimerInterval);
+        };
+
+        // STEP 1 Submission: Generate and Send OTP
+        window.handleRequestOTP = function(e) {
             e.preventDefault();
-            if (isSubmitting) return;
 
             const name = document.getElementById('inputName').value.trim();
             const phone = document.getElementById('inputPhone').value.trim();
+            const email = document.getElementById('inputEmail').value.trim().toLowerCase();
 
-            if (!name || !selectedTargetLetter) return;
+            if (!name || !phone || !email) {
+                alert("Please complete all required fields.");
+                return;
+            }
 
-            isSubmitting = true;
-            const submitBtn = document.getElementById('submitClaimBtn');
-            if (submitBtn) submitBtn.disabled = true;
+            // Uniqueness check for email / device
+            const lockCheck = checkDeviceOrEmailAlreadyPicked(email);
+            if (lockCheck.picked) {
+                alert(`🚫 ENTRY DENIED:\n\n${lockCheck.reason}`);
+                return;
+            }
 
             currentUser.name = name;
             currentUser.phone = phone;
+            currentUser.email = email;
             localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
             updateUserDisplay();
+
+            // Generate 6-digit OTP
+            activeOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+            // Display Step 2 OTP interface
+            document.getElementById('claimStep1Form').classList.add('hidden');
+            document.getElementById('claimStep2Form').classList.remove('hidden');
+            document.getElementById('targetEmailDisplay').innerText = email;
+            document.getElementById('simulatedOtpCode').innerText = activeOTP;
+            document.getElementById('inputOtpCode').value = '';
+            document.getElementById('otpModalSubtext').innerText = "Enter the 6-digit verification passkey to confirm your pick.";
+
+            startOTPTimer();
+        };
+
+        function startOTPTimer() {
+            clearInterval(otpTimerInterval);
+            otpCountdown = 60;
+            const timerEl = document.getElementById('otpTimerText');
+            const resendBtn = document.getElementById('resendOtpBtn');
+            resendBtn.disabled = true;
+
+            otpTimerInterval = setInterval(() => {
+                otpCountdown--;
+                if (timerEl) timerEl.innerText = `${otpCountdown}s`;
+                if (otpCountdown <= 0) {
+                    clearInterval(otpTimerInterval);
+                    if (resendBtn) resendBtn.disabled = false;
+                    if (timerEl) timerEl.innerText = "Expired";
+                }
+            }, 1000);
+        }
+
+        window.resendOTPCode = function() {
+            activeOTP = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('simulatedOtpCode').innerText = activeOTP;
+            alert(`A new 6-digit passkey (${activeOTP}) has been generated for ${currentUser.email}.`);
+            startOTPTimer();
+        };
+
+        // STEP 2 Submission: Verify OTP & Commit Pick
+        window.handleVerifyOTP = async function(e) {
+            e.preventDefault();
+            if (isSubmitting) return;
+
+            const enteredOTP = document.getElementById('inputOtpCode').value.trim();
+
+            if (enteredOTP !== activeOTP) {
+                alert("❌ Invalid Passkey! Please enter the exact 6-digit code shown.");
+                return;
+            }
+
+            isSubmitting = true;
+            const verifyBtn = document.getElementById('verifyOtpBtn');
+            if (verifyBtn) verifyBtn.disabled = true;
 
             const targetLetter = selectedTargetLetter;
 
@@ -394,11 +542,22 @@
                             throw new Error(`Letter ${targetLetter} was just claimed by someone else!`);
                         }
 
+                        // Re-verify device lock in transaction
+                        const picksList = Object.values(roundData.picks || {});
+                        if (picksList.some(p => p.deviceId === deviceId)) {
+                            throw new Error("This device has already submitted a pick for this round.");
+                        }
+                        if (picksList.some(p => p.email && p.email.toLowerCase() === currentUser.email.toLowerCase())) {
+                            throw new Error(`Email ${currentUser.email} has already participated in this round.`);
+                        }
+
                         const numberRevealed = roundData.mapping[targetLetter];
                         const newPicks = { ...roundData.picks };
                         newPicks[targetLetter] = {
-                            name: name,
-                            phone: phone,
+                            name: currentUser.name,
+                            phone: currentUser.phone,
+                            email: currentUser.email,
+                            deviceId: deviceId,
                             number: numberRevealed,
                             timestamp: new Date().toLocaleTimeString(),
                             uid: currentUser.uid
@@ -414,7 +573,16 @@
                         alert(`Letter ${targetLetter} has already been claimed!`);
                         window.closeModal('claimModal');
                         isSubmitting = false;
-                        if (submitBtn) submitBtn.disabled = false;
+                        if (verifyBtn) verifyBtn.disabled = false;
+                        return;
+                    }
+
+                    const lockCheck = checkDeviceOrEmailAlreadyPicked(currentUser.email);
+                    if (lockCheck.picked) {
+                        alert(`🚫 PICK BLOCKED:\n\n${lockCheck.reason}`);
+                        window.closeModal('claimModal');
+                        isSubmitting = false;
+                        if (verifyBtn) verifyBtn.disabled = false;
                         return;
                     }
 
@@ -422,8 +590,10 @@
                     if (!currentRound.picks) currentRound.picks = {};
                     
                     currentRound.picks[targetLetter] = {
-                        name: name,
-                        phone: phone,
+                        name: currentUser.name,
+                        phone: currentUser.phone,
+                        email: currentUser.email,
+                        deviceId: deviceId,
                         number: numberRevealed,
                         timestamp: new Date().toLocaleTimeString(),
                         uid: currentUser.uid
@@ -434,10 +604,10 @@
                     renderAll();
                 }
             } catch (err) {
-                alert(err.message || "Could not claim letter. Please pick another one.");
+                alert(err.message || "Could not claim letter. Please try again.");
             } finally {
                 isSubmitting = false;
-                if (submitBtn) submitBtn.disabled = false;
+                if (verifyBtn) verifyBtn.disabled = false;
             }
         };
 
@@ -445,7 +615,7 @@
             const url = window.location.href.split('?')[0];
             const totalPicked = Object.keys(currentRound.picks || {}).length;
             const availableCount = LETTERS.length - totalPicked;
-            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to K to reveal your secret number (1-11)!\n\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
+            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to K to reveal your secret number (1-11)!\n\n🔐 *Email OTP Verified & 1 Pick Per Device Lock*\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
             
             document.getElementById('sharePreviewText').innerText = shareMsg;
             window.openModal('shareModal');
@@ -463,7 +633,7 @@
             const name = document.getElementById('resName').innerText;
             const url = window.location.href.split('?')[0];
 
-            const msg = `🎯 *MGR 2026/27 LOTTERY RESULT!*\n\nI (${name}) picked *Letter ${letter}* and revealed *Secret Number ${number}*! 🥳\n\nPick your remaining letter before they are all taken:\n${url}`;
+            const msg = `🎯 *MGR 2026/27 LOTTERY RESULT!*\n\nI (${name}) verified my email and picked *Letter ${letter}* to reveal *Secret Number ${number}*! 🥳\n\nPick your remaining letter before they are all taken:\n${url}`;
             const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
             window.open(waUrl, '_blank');
         };
@@ -634,6 +804,19 @@
             document.getElementById('availableCountBadge').innerText = `${availableCount} Available`;
             document.getElementById('claimedRatio').innerText = `${totalPicked}/${LETTERS.length} Picked`;
 
+            // Update Device Status Badge
+            const devCheck = checkDeviceOrEmailAlreadyPicked();
+            const devBadge = document.getElementById('deviceStatusBadge');
+            if (devBadge) {
+                if (devCheck.picked) {
+                    devBadge.innerText = "Picked (Locked)";
+                    devBadge.className = "font-bold text-amber-400 bg-amber-950/60 border border-amber-800/50 px-2 py-0.5 rounded-full";
+                } else {
+                    devBadge.innerText = "1 Pick Allowed";
+                    devBadge.className = "font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-full";
+                }
+            }
+
             const gridEl = document.getElementById('letterGrid');
             gridEl.innerHTML = '';
 
@@ -644,12 +827,16 @@
                 const card = document.createElement('div');
                 
                 if (!isClaimed) {
-                    card.className = "letter-card bg-[#111b21] hover:bg-slate-800 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-3 text-center cursor-pointer shadow-md flex flex-col items-center justify-between min-h-[105px] select-none";
+                    const isDeviceLocked = devCheck.picked;
+                    card.className = isDeviceLocked
+                        ? "letter-card bg-[#111b21] opacity-60 border-2 border-slate-700/50 rounded-2xl p-3 text-center cursor-not-allowed shadow-md flex flex-col items-center justify-between min-h-[105px] select-none"
+                        : "letter-card bg-[#111b21] hover:bg-slate-800 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-3 text-center cursor-pointer shadow-md flex flex-col items-center justify-between min-h-[105px] select-none";
+                    
                     card.onclick = () => window.openClaimModal(letter);
                     card.innerHTML = `
-                        <span class="text-2xl font-black text-emerald-400 block">${letter}</span>
+                        <span class="text-2xl font-black ${isDeviceLocked ? 'text-slate-500' : 'text-emerald-400'} block">${letter}</span>
                         <span class="text-[10px] font-semibold text-emerald-300/80 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded-full mt-1">AVAILABLE</span>
-                        <span class="text-[10px] text-slate-500 mt-2">Tap to pick</span>
+                        <span class="text-[10px] text-slate-500 mt-2">${isDeviceLocked ? 'Device Locked' : 'Tap to pick'}</span>
                     `;
                 } else {
                     card.className = "letter-card bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-center opacity-90 shadow-inner flex flex-col items-center justify-between min-h-[105px] select-none cursor-not-allowed";
@@ -684,7 +871,10 @@
                         tr.className = "hover:bg-slate-800/40 transition";
                         tr.innerHTML = `
                             <td class="py-2 font-bold text-emerald-400">Letter ${letter}</td>
-                            <td class="py-2 text-slate-200 font-medium">${escapeHtml(info.name)} ${info.phone ? `<span class="text-[10px] text-slate-500">(${escapeHtml(info.phone)})</span>` : ''}</td>
+                            <td class="py-2 text-slate-200 font-medium">
+                                ${escapeHtml(info.name)} 
+                                ${info.email ? `<span class="text-[10px] text-slate-500 block truncate max-w-[140px]">${escapeHtml(info.email)}</span>` : ''}
+                            </td>
                             <td class="py-2 text-right font-black text-amber-400">#${info.number}</td>
                         `;
                         tableBody.appendChild(tr);
@@ -697,10 +887,14 @@
 
         function checkUserCurrentSelection() {
             if (!currentRound.picks) return;
-            const myPickLetter = LETTERS.find(l => 
-                currentRound.picks[l] && 
-                (currentRound.picks[l].name === currentUser.name || (currentRound.picks[l].uid && currentRound.picks[l].uid === currentUser.uid))
-            );
+            const myPickLetter = LETTERS.find(l => {
+                const p = currentRound.picks[l];
+                return p && (
+                    p.deviceId === deviceId || 
+                    (currentUser.email && p.email && p.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+                    (p.uid && p.uid === currentUser.uid)
+                );
+            });
             
             if (myPickLetter) {
                 const info = currentRound.picks[myPickLetter];
