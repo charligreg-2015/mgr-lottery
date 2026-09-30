@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MGR 2026/27 Lottery (A-J)</title>
+    <title>MGR 2026/27 Lottery (A-K)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
@@ -124,21 +124,21 @@
         <div class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-800/40 rounded-xl p-3.5 flex items-start space-x-3">
             <i class="fa-solid fa-circle-info text-emerald-400 text-lg mt-0.5 shrink-0"></i>
             <p class="text-xs text-slate-300 leading-relaxed">
-                Letters <strong class="text-emerald-300">A to J</strong> map to secret numbers <strong class="text-emerald-300">1 to 10</strong>. Pick an available letter to lock your choice and reveal your hidden number!
+                Letters <strong class="text-emerald-300">A to K</strong> map to secret numbers <strong class="text-emerald-300">1 to 11</strong>. Pick an available letter to lock your choice and reveal your hidden number!
             </p>
         </div>
 
         <!-- Interactive Letter Grid -->
         <div>
             <div class="flex items-center justify-between mb-3">
-                <h2 class="text-xs uppercase tracking-wider font-bold text-slate-400">Pick a Letter (A - J)</h2>
+                <h2 class="text-xs uppercase tracking-wider font-bold text-slate-400">Pick a Letter (A - K)</h2>
                 <span id="availableCountBadge" class="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full">
-                    10 Available
+                    11 Available
                 </span>
             </div>
 
-            <div id="letterGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                <!-- Buttons A-J generated dynamically -->
+            <div id="letterGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                <!-- Buttons A-K generated dynamically -->
             </div>
         </div>
 
@@ -170,7 +170,7 @@
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                     <i class="fa-solid fa-list-check text-emerald-400"></i> Live Claims Summary
                 </h3>
-                <span id="claimedRatio" class="text-xs text-slate-400">0/10 Picked</span>
+                <span id="claimedRatio" class="text-xs text-slate-400">0/11 Picked</span>
             </div>
 
             <div class="overflow-x-auto">
@@ -282,7 +282,7 @@
             runTransaction 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
         const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v3';
         const STORAGE_KEY_ROUND = 'mgr_lottery_local_state_v3';
 
@@ -335,7 +335,7 @@
             const icon = document.getElementById('resetIcon');
             if (icon) icon.classList.add('animate-spin');
 
-            if (confirm("Are you sure you want to start a NEW round? This will reset all 10 letters and reshuffle secret numbers.")) {
+            if (confirm("Are you sure you want to start a NEW round? This will reset all 11 letters and reshuffle secret numbers.")) {
                 const nextId = (currentRound.roundId || 1000) + 1;
                 await createNewRound(nextId);
                 const userCard = document.getElementById('userResultCard');
@@ -418,7 +418,7 @@
                         return;
                     }
 
-                    const numberRevealed = currentRound.mapping[targetLetter] || Math.floor(Math.random() * 10) + 1;
+                    const numberRevealed = currentRound.mapping[targetLetter] || Math.floor(Math.random() * 11) + 1;
                     if (!currentRound.picks) currentRound.picks = {};
                     
                     currentRound.picks[targetLetter] = {
@@ -444,8 +444,8 @@
         window.openShareModal = function() {
             const url = window.location.href.split('?')[0];
             const totalPicked = Object.keys(currentRound.picks || {}).length;
-            const availableCount = 10 - totalPicked;
-            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to J to reveal your secret number (1-10)!\n\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
+            const availableCount = LETTERS.length - totalPicked;
+            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to K to reveal your secret number (1-11)!\n\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
             
             document.getElementById('sharePreviewText').innerText = shareMsg;
             window.openModal('shareModal');
@@ -529,7 +529,7 @@
                 }
             } else {
                 updateStatus("Ready (Local tab sync active)", false);
-                if (!currentRound.mapping || Object.keys(currentRound.mapping).length === 0) {
+                if (!currentRound.mapping || Object.keys(currentRound.mapping).length === 0 || Object.keys(currentRound.mapping).length !== LETTERS.length) {
                     createNewRound(1001);
                 } else {
                     renderAll();
@@ -538,7 +538,7 @@
         });
 
         function createNewRound(roundIdNumber) {
-            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
             for (let i = numbers.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
@@ -630,9 +630,9 @@
             document.getElementById('hashDisplay').innerText = currentRound.seedHash || '0x4f81a7b...';
 
             const totalPicked = Object.keys(currentRound.picks || {}).length;
-            const availableCount = 10 - totalPicked;
+            const availableCount = LETTERS.length - totalPicked;
             document.getElementById('availableCountBadge').innerText = `${availableCount} Available`;
-            document.getElementById('claimedRatio').innerText = `${totalPicked}/10 Picked`;
+            document.getElementById('claimedRatio').innerText = `${totalPicked}/${LETTERS.length} Picked`;
 
             const gridEl = document.getElementById('letterGrid');
             gridEl.innerHTML = '';
