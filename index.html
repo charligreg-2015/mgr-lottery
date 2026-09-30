@@ -75,7 +75,7 @@
                     <h1 class="text-base font-bold text-slate-100 leading-tight">MGR 2026/27 Lottery</h1>
                     <p class="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
                         <span id="syncIndicator" class="w-2 h-2 rounded-full bg-amber-400 inline-block animate-ping"></span>
-                        <span id="roundLabel">Connecting...</span>
+                        <span id="roundLabel">Loading...</span>
                     </p>
                 </div>
             </div>
@@ -85,8 +85,8 @@
                 <button onclick="window.openShareModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 transition shadow">
                     <i class="fa-brands fa-whatsapp text-sm"></i> Share
                 </button>
-                <button onclick="window.confirmResetRound()" title="Start New Round" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 transition">
-                    <i class="fa-solid fa-arrows-rotate text-sm"></i>
+                <button id="resetRoundBtn" onclick="window.confirmResetRound()" title="Start New Round" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 transition active:scale-95 flex items-center justify-center">
+                    <i class="fa-solid fa-arrows-rotate text-sm" id="resetIcon"></i>
                 </button>
             </div>
         </div>
@@ -98,10 +98,10 @@
         <!-- Sync Alert Banner -->
         <div id="connectionStatus" class="bg-slate-900 border border-slate-800 text-slate-400 rounded-xl px-3 py-2 text-xs flex items-center justify-between">
             <span class="flex items-center gap-2">
-                <i class="fa-solid fa-cloud-arrow-up text-emerald-400 animate-pulse"></i>
-                <span id="statusText">Syncing real-time room state...</span>
+                <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                <span id="statusText">System ready</span>
             </span>
-            <span class="text-[10px] bg-emerald-950 border border-emerald-800/80 text-emerald-300 px-2 py-0.5 rounded-full font-mono">LIVE SYNC</span>
+            <span id="syncBadge" class="text-[10px] bg-emerald-950 border border-emerald-800/80 text-emerald-300 px-2 py-0.5 rounded-full font-mono">ACTIVE</span>
         </div>
 
         <!-- User Identity Bar -->
@@ -201,7 +201,7 @@
 
     <!-- Footer -->
     <footer class="bg-[#0b141a] border-t border-slate-900 py-3 text-center text-[11px] text-slate-500">
-        MGR 2026/27 Lottery &bull; Powered by Cloud Real-Time Sync
+        MGR 2026/27 Lottery &bull; Powered by Real-Time Sync
     </footer>
 
     <!-- MODAL 1: Claim Letter Prompt -->
@@ -270,9 +270,10 @@
         </div>
     </div>
 
+    <!-- MAIN SCRIPT -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, 
             doc, 
@@ -283,27 +284,10 @@
 
         const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
         const STORAGE_KEY_USER = 'mgr_lottery_user_identity_v3';
+        const STORAGE_KEY_ROUND = 'mgr_lottery_local_state_v3';
 
-        // Firebase Setup using platform provided config or demo sandbox fallback
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mgr-lottery-2026';
-        
-        let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
-        } else {
-            // Default demo config for instant browser fallback
-            firebaseConfig = {
-                apiKey: "AIzaSyDemoKeyForLotterySync1234567",
-                authDomain: "mgr-lottery.firebaseapp.com",
-                projectId: "mgr-lottery-default",
-                storageBucket: "mgr-lottery.appspot.com",
-                messagingSenderId: "123456789",
-                appId: "1:123456789:web:abcdef123456"
-            };
-        }
-
-        let app, db, auth;
-        let currentUser = { name: '', phone: '', uid: '' };
+        let app = null, db = null, auth = null;
+        let currentUser = { name: '', phone: '', uid: crypto.randomUUID() };
         let currentRound = {
             roundId: 1001,
             mapping: {}, 
@@ -312,103 +296,67 @@
         };
         let selectedTargetLetter = null;
         let isSubmitting = false;
+        let broadcastChan = null;
 
-        // Path for Public Data according to mandatory rules
-        const activeDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'lottery_rounds', 'active');
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            loadUserIdentity();
-            
+        if ('BroadcastChannel' in window) {
             try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                // Authenticate before Firestore queries
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                currentUser.uid = auth.currentUser?.uid || crypto.randomUUID();
-                updateStatus("Connected to live server", true);
-
-                // Start Listening to Firebase Firestore document changes
-                listenToLiveRound();
-
-            } catch (err) {
-                console.warn("Firestore initialization fallback, switching to local state mode:", err);
-                updateStatus("Offline mode active (Local tab sync)", false);
-                setupLocalFallbackSync();
-            }
-        });
-
-        function updateStatus(text, isLive) {
-            const statusEl = document.getElementById('statusText');
-            const indEl = document.getElementById('syncIndicator');
-            if (statusEl) statusEl.innerText = text;
-            if (indEl) {
-                indEl.className = isLive 
-                    ? "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block animate-ping" 
-                    : "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block";
-            }
+                broadcastChan = new BroadcastChannel('mgr_lottery_channel');
+                broadcastChan.onmessage = (e) => {
+                    if (e.data && e.data.round) {
+                        currentRound = e.data.round;
+                        renderAll();
+                    }
+                };
+            } catch(e) {}
         }
 
-        function listenToLiveRound() {
-            const docRef = activeDocRef();
+        // Global Modal and UI Helper bindings
+        window.openModal = function(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        };
 
-            onSnapshot(docRef, async (snapshot) => {
-                if (snapshot.exists()) {
-                    currentRound = snapshot.data();
-                    renderAll();
-                } else {
-                    // Initialize round #1001 in Firestore if empty
-                    await createNewRoundInFirestore(1001);
-                }
-            }, (error) => {
-                console.error("Firestore listener error:", error);
-                updateStatus("Sync error - retrying...", false);
-            });
-        }
+        window.closeModal = function(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        };
 
-        async function createNewRoundInFirestore(roundIdNumber) {
-            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-            // Fisher-Yates random shuffle
-            for (let i = numbers.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-            }
-
-            const mapping = {};
-            LETTERS.forEach((letter, index) => {
-                mapping[letter] = numbers[index];
-            });
-
-            // Seed Hash for Provable Fairness
-            const rawSeed = JSON.stringify(mapping) + Date.now();
-            let hash = 0;
-            for (let i = 0; i < rawSeed.length; i++) {
-                hash = ((hash << 5) - hash) + rawSeed.charCodeAt(i);
-                hash |= 0;
-            }
-
-            const newRoundData = {
-                roundId: roundIdNumber,
-                mapping: mapping,
-                picks: {},
-                seedHash: '0x' + Math.abs(hash).toString(16) + Math.random().toString(16).substring(2, 8),
-                updatedAt: Date.now()
-            };
-
-            if (db && auth?.currentUser) {
-                await setDoc(activeDocRef(), newRoundData);
-            } else {
-                currentRound = newRoundData;
-                localStorage.setItem('mgr_lottery_local_state', JSON.stringify(currentRound));
+        window.changeIdentityPrompt = function() {
+            const newName = prompt("Enter your Name for this lottery session:", currentUser.name);
+            if (newName && newName.trim() !== "") {
+                currentUser.name = newName.trim();
+                localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
+                updateUserDisplay();
                 renderAll();
             }
-        }
+        };
+
+        window.confirmResetRound = async function() {
+            const icon = document.getElementById('resetIcon');
+            if (icon) icon.classList.add('animate-spin');
+
+            if (confirm("Are you sure you want to start a NEW round? This will reset all 10 letters and reshuffle secret numbers.")) {
+                const nextId = (currentRound.roundId || 1000) + 1;
+                await createNewRound(nextId);
+                const userCard = document.getElementById('userResultCard');
+                if (userCard) userCard.classList.add('hidden');
+            }
+
+            if (icon) icon.classList.remove('animate-spin');
+        };
+
+        window.openClaimModal = function(letter) {
+            if (currentRound.picks && currentRound.picks[letter]) {
+                alert(`Letter ${letter} has already been claimed!`);
+                return;
+            }
+            selectedTargetLetter = letter;
+            document.getElementById('modalTargetLetter').innerText = letter;
+            document.getElementById('modalLetterTitle').innerText = letter;
+            document.getElementById('inputName').value = currentUser.name || '';
+            document.getElementById('inputPhone').value = currentUser.phone || '';
+            window.openModal('claimModal');
+        };
 
         window.handleClaimSubmit = async function(e) {
             e.preventDefault();
@@ -432,7 +380,6 @@
 
             try {
                 if (db && auth?.currentUser) {
-                    // Use Atomic Firestore Transaction to ensure strict single pick concurrency
                     await runTransaction(db, async (transaction) => {
                         const docRef = activeDocRef();
                         const docSnap = await transaction.get(docRef);
@@ -443,7 +390,6 @@
 
                         const roundData = docSnap.data();
                         
-                        // Check if claimed during user typing
                         if (roundData.picks && roundData.picks[targetLetter]) {
                             throw new Error(`Letter ${targetLetter} was just claimed by someone else!`);
                         }
@@ -463,7 +409,7 @@
 
                     window.closeModal('claimModal');
                 } else {
-                    // Fallback local pick
+                    // Local fallback execution
                     if (currentRound.picks[targetLetter]) {
                         alert(`Letter ${targetLetter} has already been claimed!`);
                         window.closeModal('claimModal');
@@ -472,7 +418,9 @@
                         return;
                     }
 
-                    const numberRevealed = currentRound.mapping[targetLetter];
+                    const numberRevealed = currentRound.mapping[targetLetter] || Math.floor(Math.random() * 10) + 1;
+                    if (!currentRound.picks) currentRound.picks = {};
+                    
                     currentRound.picks[targetLetter] = {
                         name: name,
                         phone: phone,
@@ -480,7 +428,8 @@
                         timestamp: new Date().toLocaleTimeString(),
                         uid: currentUser.uid
                     };
-                    localStorage.setItem('mgr_lottery_local_state', JSON.stringify(currentRound));
+
+                    saveLocalRound(currentRound);
                     window.closeModal('claimModal');
                     renderAll();
                 }
@@ -491,6 +440,157 @@
                 if (submitBtn) submitBtn.disabled = false;
             }
         };
+
+        window.openShareModal = function() {
+            const url = window.location.href.split('?')[0];
+            const totalPicked = Object.keys(currentRound.picks || {}).length;
+            const availableCount = 10 - totalPicked;
+            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to J to reveal your secret number (1-10)!\n\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
+            
+            document.getElementById('sharePreviewText').innerText = shareMsg;
+            window.openModal('shareModal');
+        };
+
+        window.executeWhatsAppShare = function() {
+            const text = document.getElementById('sharePreviewText').innerText;
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(waUrl, '_blank');
+        };
+
+        window.shareMyResultToWhatsApp = function() {
+            const letter = document.getElementById('resLetter').innerText;
+            const number = document.getElementById('resNumber').innerText;
+            const name = document.getElementById('resName').innerText;
+            const url = window.location.href.split('?')[0];
+
+            const msg = `🎯 *MGR 2026/27 LOTTERY RESULT!*\n\nI (${name}) picked *Letter ${letter}* and revealed *Secret Number ${number}*! 🥳\n\nPick your remaining letter before they are all taken:\n${url}`;
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(waUrl, '_blank');
+        };
+
+        window.copyShareText = function() {
+            const text = document.getElementById('sharePreviewText').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Invitation text copied to clipboard!");
+            }).catch(() => {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                alert("Invitation text copied to clipboard!");
+            });
+        };
+
+        // Firebase path
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mgr-lottery-2026';
+        const activeDocRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'lottery_rounds', 'active');
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', async () => {
+            loadUserIdentity();
+            loadLocalRound();
+
+            // Try Firebase Cloud Setup safely
+            if (typeof __firebase_config !== 'undefined') {
+                try {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    currentUser.uid = auth.currentUser?.uid || crypto.randomUUID();
+                    updateStatus("Cloud real-time sync active", true);
+
+                    // Listen to live Cloud Firestore updates
+                    onSnapshot(activeDocRef(), (snapshot) => {
+                        if (snapshot.exists()) {
+                            currentRound = snapshot.data();
+                            saveLocalRound(currentRound, false);
+                            renderAll();
+                        } else {
+                            createNewRound(1001);
+                        }
+                    }, (err) => {
+                        console.warn("Firestore snapshot listener notice:", err);
+                        updateStatus("Local storage mode (Offline sync)", false);
+                    });
+
+                } catch (err) {
+                    console.warn("Cloud connection notice, running in local mode:", err);
+                    updateStatus("Local storage mode active", false);
+                }
+            } else {
+                updateStatus("Ready (Local tab sync active)", false);
+                if (!currentRound.mapping || Object.keys(currentRound.mapping).length === 0) {
+                    createNewRound(1001);
+                } else {
+                    renderAll();
+                }
+            }
+        });
+
+        function createNewRound(roundIdNumber) {
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            for (let i = numbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+            }
+
+            const mapping = {};
+            LETTERS.forEach((letter, index) => {
+                mapping[letter] = numbers[index];
+            });
+
+            const rawSeed = JSON.stringify(mapping) + Date.now();
+            let hash = 0;
+            for (let i = 0; i < rawSeed.length; i++) {
+                hash = ((hash << 5) - hash) + rawSeed.charCodeAt(i);
+                hash |= 0;
+            }
+
+            const newRoundData = {
+                roundId: roundIdNumber,
+                mapping: mapping,
+                picks: {},
+                seedHash: '0x' + Math.abs(hash).toString(16) + Math.random().toString(16).substring(2, 8),
+                updatedAt: Date.now()
+            };
+
+            currentRound = newRoundData;
+            saveLocalRound(currentRound);
+
+            if (db && auth?.currentUser) {
+                setDoc(activeDocRef(), newRoundData).catch(e => console.warn("Firestore setDoc fallback:", e));
+            }
+
+            renderAll();
+        }
+
+        function saveLocalRound(roundData, broadcast = true) {
+            try {
+                localStorage.setItem(STORAGE_KEY_ROUND, JSON.stringify(roundData));
+                if (broadcast && broadcastChan) {
+                    broadcastChan.postMessage({ round: roundData });
+                }
+            } catch(e) {}
+        }
+
+        function loadLocalRound() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY_ROUND);
+                if (saved) {
+                    currentRound = JSON.parse(saved);
+                }
+            } catch(e) {}
+        }
 
         function loadUserIdentity() {
             const stored = localStorage.getItem(STORAGE_KEY_USER);
@@ -510,28 +610,30 @@
             if (el) el.innerText = currentUser.name;
         }
 
-        window.changeIdentityPrompt = function() {
-            const newName = prompt("Enter your Name for this lottery session:", currentUser.name);
-            if (newName && newName.trim() !== "") {
-                currentUser.name = newName.trim();
-                localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(currentUser));
-                updateUserDisplay();
-                renderAll();
+        function updateStatus(text, isLive) {
+            const statusEl = document.getElementById('statusText');
+            const indEl = document.getElementById('syncIndicator');
+            const badgeEl = document.getElementById('syncBadge');
+            if (statusEl) statusEl.innerText = text;
+            if (indEl) {
+                indEl.className = isLive 
+                    ? "w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping" 
+                    : "w-2 h-2 rounded-full bg-amber-400 inline-block";
             }
-        };
+            if (badgeEl) {
+                badgeEl.innerText = isLive ? "LIVE SYNC" : "LOCAL SYNC";
+            }
+        }
 
         function renderAll() {
-            // Header Info
             document.getElementById('roundLabel').innerText = `Round #${currentRound.roundId || 1001}`;
             document.getElementById('hashDisplay').innerText = currentRound.seedHash || '0x4f81a7b...';
 
-            // Counts
             const totalPicked = Object.keys(currentRound.picks || {}).length;
             const availableCount = 10 - totalPicked;
             document.getElementById('availableCountBadge').innerText = `${availableCount} Available`;
             document.getElementById('claimedRatio').innerText = `${totalPicked}/10 Picked`;
 
-            // Grid Rendering
             const gridEl = document.getElementById('letterGrid');
             gridEl.innerHTML = '';
 
@@ -565,7 +667,6 @@
                 gridEl.appendChild(card);
             });
 
-            // Table Summary Rendering
             const tableBody = document.getElementById('summaryTableBody');
             tableBody.innerHTML = '';
 
@@ -591,7 +692,6 @@
                 });
             }
 
-            // Check if current user picked something in this round
             checkUserCurrentSelection();
         }
 
@@ -617,100 +717,9 @@
             document.getElementById('userResultCard').classList.remove('hidden');
         }
 
-        window.openClaimModal = function(letter) {
-            if (currentRound.picks && currentRound.picks[letter]) {
-                alert(`Letter ${letter} has already been claimed!`);
-                return;
-            }
-            selectedTargetLetter = letter;
-            document.getElementById('modalTargetLetter').innerText = letter;
-            document.getElementById('modalLetterTitle').innerText = letter;
-            document.getElementById('inputName').value = currentUser.name || '';
-            document.getElementById('inputPhone').value = currentUser.phone || '';
-            window.openModal('claimModal');
-        };
-
-        window.confirmResetRound = async function() {
-            if (confirm("Are you sure you want to start a NEW round? This will reset all 10 letters for all participants in the WhatsApp group.")) {
-                const nextId = (currentRound.roundId || 1000) + 1;
-                await createNewRoundInFirestore(nextId);
-                document.getElementById('userResultCard').classList.add('hidden');
-            }
-        };
-
-        function getShareableGameUrl() {
-            return window.location.href.split('?')[0];
-        }
-
-        window.openShareModal = function() {
-            const url = getShareableGameUrl();
-            const totalPicked = Object.keys(currentRound.picks || {}).length;
-            const availableCount = 10 - totalPicked;
-            const shareMsg = `🎟️ *MGR 2026/27 LOTTERY (Round #${currentRound.roundId || 1001})*\n\nPick a letter from A to J to reveal your secret number (1-10)!\n\n🔥 *${availableCount} Letters Remaining*\n\nJoin and claim your letter here:\n${url}`;
-            
-            document.getElementById('sharePreviewText').innerText = shareMsg;
-            window.openModal('shareModal');
-        };
-
-        window.executeWhatsAppShare = function() {
-            const text = document.getElementById('sharePreviewText').innerText;
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(waUrl, '_blank');
-        };
-
-        window.shareMyResultToWhatsApp = function() {
-            const letter = document.getElementById('resLetter').innerText;
-            const number = document.getElementById('resNumber').innerText;
-            const name = document.getElementById('resName').innerText;
-            const url = getShareableGameUrl();
-
-            const msg = `🎯 *MGR 2026/27 LOTTERY RESULT!*\n\nI (${name}) picked *Letter ${letter}* and revealed *Secret Number ${number}*! 🥳\n\nPick your remaining letter before they are all taken:\n${url}`;
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-            window.open(waUrl, '_blank');
-        };
-
-        window.copyShareText = function() {
-            const text = document.getElementById('sharePreviewText').innerText;
-            const tempInput = document.createElement('textarea');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            alert("Invitation text copied to clipboard!");
-        };
-
-        // Modal Helpers
-        window.openModal = function(id) {
-            document.getElementById(id).classList.remove('hidden');
-        };
-        window.closeModal = function(id) {
-            document.getElementById(id).classList.add('hidden');
-        };
-
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
-
-        // Local Tab Sync Fallback if offline
-        function setupLocalFallbackSync() {
-            if ('BroadcastChannel' in window) {
-                const bc = new BroadcastChannel('mgr_lottery_channel');
-                bc.onmessage = (e) => {
-                    if (e.data && e.data.round) {
-                        currentRound = e.data.round;
-                        renderAll();
-                    }
-                };
-            }
-            const saved = localStorage.getItem('mgr_lottery_local_state');
-            if (saved) {
-                try { currentRound = JSON.parse(saved); } catch(e){}
-            } else {
-                createNewRoundInFirestore(1001);
-            }
-            renderAll();
         }
     </script>
 </body>
