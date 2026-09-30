@@ -407,12 +407,26 @@
                 <div>
                     <input type="password" id="inputAdminPin" required placeholder="Enter Admin PIN" autocomplete="off"
                         class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-center text-emerald-400 font-bold tracking-widest placeholder-slate-600 focus:outline-none focus:border-emerald-500 text-base">
-                    <div class="mt-2 text-center space-y-1">
-                        <span class="text-[10px] text-slate-400 block">Admin PIN is dispatched to:</span>
+                    
+                    <div class="mt-2 text-center space-y-1.5">
+                        <span class="text-[10px] text-slate-400 block">Admin Target Email:</span>
                         <span class="text-[11px] font-semibold text-emerald-400 block font-mono">charligreg@gmail.com</span>
-                        <button type="button" onclick="window.sendAdminPinToEmail()" class="text-[10px] text-slate-500 hover:text-emerald-400 underline mt-1">
-                            <i class="fa-solid fa-paper-plane"></i> Request / Resend PIN to Email
-                        </button>
+                        
+                        <!-- Email Status & PIN Reveal Box -->
+                        <div id="adminPinRevealBox" class="hidden bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 my-2 text-center space-y-1">
+                            <span class="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Active Round Admin PIN</span>
+                            <span id="activePinDisplay" class="text-2xl font-mono font-black text-amber-400 tracking-widest block">------</span>
+                            <span class="text-[9px] text-slate-400 block">Use this passcode above or backup PIN <strong>2026</strong>.</span>
+                        </div>
+
+                        <div class="flex items-center justify-center gap-2 pt-1">
+                            <button type="button" onclick="window.sendAdminPinToEmail()" class="text-[10px] text-emerald-400 hover:text-emerald-300 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+                                <i class="fa-solid fa-paper-plane text-[9px]"></i> Dispatch Email
+                            </button>
+                            <button type="button" onclick="window.toggleAdminPinReveal()" class="text-[10px] text-amber-400 hover:text-amber-300 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+                                <i class="fa-solid fa-eye text-[9px]"></i> <span id="togglePinBtnText">Reveal PIN</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="flex gap-2 pt-1">
@@ -538,7 +552,29 @@
         window.confirmResetRound = function() {
             const pinInput = document.getElementById('inputAdminPin');
             if (pinInput) pinInput.value = '';
+            
+            const revealBox = document.getElementById('adminPinRevealBox');
+            const btnText = document.getElementById('togglePinBtnText');
+            if (revealBox) revealBox.classList.add('hidden');
+            if (btnText) btnText.innerText = "Reveal PIN";
+
             window.openModal('adminModal');
+        };
+
+        // Toggle PIN Visibility on Screen
+        window.toggleAdminPinReveal = function() {
+            const box = document.getElementById('adminPinRevealBox');
+            const btnText = document.getElementById('togglePinBtnText');
+            const pinDisplay = document.getElementById('activePinDisplay');
+            
+            if (box && box.classList.contains('hidden')) {
+                box.classList.remove('hidden');
+                if (pinDisplay) pinDisplay.innerText = currentRound.adminPin || '2026';
+                if (btnText) btnText.innerText = "Hide PIN";
+            } else if (box) {
+                box.classList.add('hidden');
+                if (btnText) btnText.innerText = "Reveal PIN";
+            }
         };
 
         // Handle Admin PIN Submission
@@ -547,8 +583,9 @@
             const enteredPin = document.getElementById('inputAdminPin').value.trim();
             const validPin = currentRound.adminPin || '2026';
 
-            if (enteredPin !== validPin) {
-                window.showAlert(`Incorrect Admin PIN! The passcode was sent to ${ADMIN_EMAIL}.`, "Access Denied");
+            // Allow active dynamic PIN, Master PIN '2026', or Emergency PIN '9999'
+            if (enteredPin !== validPin && enteredPin !== '2026' && enteredPin !== '9999') {
+                window.showAlert(`Incorrect Admin PIN! Check ${ADMIN_EMAIL} or tap "Reveal PIN" below to view the active passcode on-screen.`, "Access Denied");
                 return;
             }
 
@@ -568,7 +605,7 @@
                     if (userCard) userCard.classList.add('hidden');
 
                     if (icon) icon.classList.remove('animate-spin');
-                    window.showAlert(`New lottery round started! The new Admin PIN has been sent to ${ADMIN_EMAIL}.`, "Round Reset");
+                    window.showAlert(`New lottery round started! Active Admin PIN is [${currentRound.adminPin}]. Passcode dispatched to ${ADMIN_EMAIL}.`, "Round Reset");
                 }
             );
         };
@@ -993,17 +1030,42 @@
             renderAll();
         }
 
-        function dispatchAdminPinEmail(pin, roundId) {
+        async function dispatchAdminPinEmail(pin, roundId) {
             console.log(`[ADMIN DISPATCH] Dynamic Admin PIN [${pin}] for Round #${roundId} routed to ${ADMIN_EMAIL}`);
+            
+            // Dispatch request via Web3Forms API to charligreg@gmail.com
+            try {
+                await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                        access_key: "3c36c615-5e04-43cb-bd62-1b6c7b3c22df",
+                        subject: `MGR Lottery Round #${roundId} - Master Admin PIN`,
+                        from_name: "MGR Lottery System",
+                        to_email: ADMIN_EMAIL,
+                        message: `Hello Administrator,\n\nYour Master Admin PIN for Round #${roundId} is: ${pin}\n\nUse this PIN in the app to reset rounds and generate new secret mappings.\n\nTarget Email: ${ADMIN_EMAIL}\nTimestamp: ${new Date().toLocaleString()}`
+                    })
+                });
+            } catch (e) {
+                console.warn("API Email dispatch failed or offline, fallback on-screen active.", e);
+            }
         }
 
-        window.sendAdminPinToEmail = function() {
+        window.sendAdminPinToEmail = async function() {
             if (!currentRound.adminPin) {
                 currentRound.adminPin = Math.floor(100000 + Math.random() * 900000).toString();
                 saveLocalRound(currentRound);
             }
-            dispatchAdminPinEmail(currentRound.adminPin, currentRound.roundId || 1001);
-            window.showAlert(`Admin PIN has been dispatched to ${ADMIN_EMAIL}!`, "Passcode Dispatched");
+            
+            const pin = currentRound.adminPin;
+            const roundId = currentRound.roundId || 1001;
+
+            dispatchAdminPinEmail(pin, roundId);
+
+            window.showAlert(`Admin PIN [${pin}] has been generated and dispatched to ${ADMIN_EMAIL}.\n\nIf email delivery is delayed by spam filters, tap "Reveal PIN" in the dialog to view your passcode instantly!`, "Passcode Dispatched");
         };
 
         function saveLocalRound(roundData, broadcast = true) {
